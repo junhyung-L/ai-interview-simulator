@@ -32,15 +32,15 @@ LLM-generated feedback report and optional Supabase-backed session history.
 
 ```mermaid
 flowchart LR
-    A[Choose scenario, difficulty, and name] --> B[/api/session]
+    A[Choose scenario, difficulty, and name] --> B["/api/session"]
     B --> C[Roleplay chat page]
-    C --> D[/api/chat]
+    C --> D["/api/chat"]
     D --> E{OPENROUTER_API_KEY configured?}
     E -->|Yes| F[OpenRouter-compatible LLM call]
     E -->|No| G[Scripted demo reply]
     F --> H[Conversation and optional message persistence]
     G --> H
-    H --> I[/api/feedback]
+    H --> I["/api/feedback"]
     I --> J[LLM feedback or fixed demo feedback]
     J --> K[Feedback page]
     K --> L[Optional Supabase dashboard]
