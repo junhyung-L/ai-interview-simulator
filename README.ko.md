@@ -20,15 +20,15 @@
 
 ```mermaid
 flowchart LR
-    A[시나리오·난이도·이름 선택] --> B[/api/session]
+    A[시나리오·난이도·이름 선택] --> B["/api/session"]
     B --> C[역할극 대화 화면]
-    C --> D[/api/chat]
+    C --> D["/api/chat"]
     D --> E{OPENROUTER_API_KEY 설정 여부}
     E -->|예| F[OpenRouter 호환 LLM 호출]
     E -->|아니오| G[스크립트 데모 응답]
     F --> H[대화 및 선택적 메시지 저장]
     G --> H
-    H --> I[/api/feedback]
+    H --> I["/api/feedback"]
     I --> J[LLM 또는 데모 피드백]
     J --> K[피드백 화면]
     K --> L[선택적 Supabase 대시보드]
