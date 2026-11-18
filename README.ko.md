@@ -19,6 +19,8 @@ Next.js 웹앱입니다. 대화 유형과 난이도를 고르면 LLM 상대와 �
 
 **구현 범위.** `lib/personas.ts`의 시나리오 프롬프트 9개(3개 범주 x 3개 난이도), 세션·채팅·피드백 API 라우트, `OPENROUTER_API_KEY`가 있으면 OpenRouter(여러 LLM을 묶은 호스팅 게이트웨이)로 LLM을 호출하고 없으면 스크립트 데모 응답을 쓰는 분기, 선택 기능인 Supabase(인증을 갖춘 호스팅 Postgres) 저장과 Google 로그인.
 
+**역할.** Next.js 기본 템플릿 위에 앱을 직접 만들고 문서를 작성했습니다.
+
 **범위.** 연습 흐름이 동작함을 보여줄 뿐 코칭 효과를 입증하지는 않습니다. 배포·사용자 연구·모델 품질 평가가 없고, 네 가지 점수는 루브릭 보정 없이 LLM이 생성합니다.
 
 **바로 실행.** `npm ci` 후 `npm run dev`. 키가 없어도 됩니다. 시나리오 선택, 대화, 피드백까지 전체 흐름이 데모 내용으로 동작하고, 헤더에는 "Sign-in unavailable in demo mode"가 표시됩니다. 환경 변수 없이 `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`가 통과합니다.
@@ -124,3 +126,7 @@ public/                 # 로고와 favicon
 
 - [사례 연구](PORTFOLIO.ko.md)
 - [아키텍처](docs/ARCHITECTURE.md)
+
+## 라이선스
+
+오픈소스 라이선스 없음: 코드와 문서는 열람용으로 공개하며, 재사용하려면 허락이 필요합니다.

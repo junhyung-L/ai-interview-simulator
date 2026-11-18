@@ -28,6 +28,8 @@ through OpenRouter (a hosted gateway to many LLMs) when `OPENROUTER_API_KEY` is
 set and scripted demo replies when it is not; optional Supabase (hosted
 Postgres with auth) persistence and Google sign-in.
 
+**Role.** I built the app on a Next.js starter and wrote this documentation.
+
 **Scope.** A working practice flow, not a proven coaching effect: no
 deployment, user study, or model-quality evaluation, and the four scores are
 LLM-generated without rubric calibration.
@@ -160,3 +162,7 @@ public/                 # Logo and favicon
 
 - [Case study](PORTFOLIO.md)
 - [Architecture](docs/ARCHITECTURE.md)
+
+## License
+
+No open-source license: the code and documents are public for review; reuse requires permission.

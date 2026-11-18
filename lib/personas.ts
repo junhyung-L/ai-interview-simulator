@@ -21,7 +21,14 @@ const difficultyLabels: Record<Difficulty, string> = {
   advanced: '고급',
 }
 
-export { categoryLabels, difficultyLabels }
+// Role the AI plays in each scenario, used to label its turns in transcripts.
+const counterpartLabels: Record<Category, string> = {
+  customer: '고객',
+  interview: '면접관',
+  sales: '잠재 고객',
+}
+
+export { categoryLabels, difficultyLabels, counterpartLabels }
 
 const ROLE_LOCK = `
 [절대 규칙]

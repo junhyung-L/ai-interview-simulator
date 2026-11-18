@@ -1,7 +1,7 @@
 export const runtime = 'edge'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { categoryLabels, difficultyLabels, Category, Difficulty } from '@/lib/personas'
+import { categoryLabels, counterpartLabels, difficultyLabels, Category, Difficulty } from '@/lib/personas'
 import { DEMO_FEEDBACK, extractJson, validateFeedback } from '@/lib/feedback'
 import { getSupabase } from '@/lib/supabase'
 
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     // Supabase에서 대화 기록 가져오기 (또는 클라이언트에서 전달받은 messages 사용)
     let conversationText = ''
     let categoryLabel = categoryLabels[(category || 'customer') as Category]
+    let counterpartLabel = counterpartLabels[(category || 'customer') as Category] ?? 'AI'
     let difficultyLabel = difficultyLabels[(difficulty || 'beginner') as Difficulty]
 
     const supabase = getSupabase()
@@ -38,14 +39,15 @@ export async function POST(req: NextRequest) {
       }
 
       categoryLabel = categoryLabels[session.category as Category]
+      counterpartLabel = counterpartLabels[session.category as Category] ?? 'AI'
       difficultyLabel = difficultyLabels[session.difficulty as Difficulty]
       conversationText = dbMessages
-        .map((m: { role: string; content: string }) => `[${m.role === 'assistant' ? 'AI 고객' : '수강생'}]: ${m.content}`)
+        .map((m: { role: string; content: string }) => `[${m.role === 'assistant' ? `AI ${counterpartLabel}` : '수강생'}]: ${m.content}`)
         .join('\n\n')
     } else if (clientMessages) {
       // Supabase 없을 때 클라이언트가 보낸 messages 배열 사용
       conversationText = (clientMessages as { role: string; content: string }[])
-        .map(m => `[${m.role === 'assistant' ? 'AI 고객' : '수강생'}]: ${m.content}`)
+        .map(m => `[${m.role === 'assistant' ? `AI ${counterpartLabel}` : '수강생'}]: ${m.content}`)
         .join('\n\n')
     }
 
