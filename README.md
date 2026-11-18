@@ -9,8 +9,7 @@ roleplays with an LLM counterpart, and then receives an LLM-written feedback
 report with strengths, improvements, and four 0-100 scores.
 
 **Problem.** Practicing a hard conversation needs a counterpart who stays in
-role and feedback that arrives in a usable shape, and a reviewer without API
-keys should still be able to walk the whole flow.
+role and feedback that arrives in a usable shape.
 
 **What is built.** Nine scenario prompts (3 categories x 3 difficulty levels)
 in `lib/personas.ts`; session, chat, and feedback API routes; live LLM replies
@@ -18,8 +17,13 @@ through OpenRouter (a hosted gateway to many LLMs) when `OPENROUTER_API_KEY` is
 set and scripted demo replies when it is not; optional Supabase (hosted
 Postgres with auth) persistence and Google sign-in.
 
-**Try it.** `npm ci` then `npm run dev`; chat and feedback return demo content
-without keys (see [Limitations](#limitations) for the Supabase dependency).
+**Scope.** A working practice flow, not a proven coaching effect: no
+deployment, user study, or model-quality evaluation, and the four scores are
+LLM-generated without rubric calibration.
+
+**Try it.** `npm ci`, set the two `NEXT_PUBLIC_SUPABASE_*` variables (the
+landing page needs them), then `npm run dev`; chat and feedback return demo
+content without an LLM key.
 
 ## At a glance
 
