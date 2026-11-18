@@ -1,29 +1,30 @@
 # Job Simulator AI
 
-[한국어](README.ko.md) · [Project details](PORTFOLIO.md)
+LLM roleplay practice for interviews, customer support, and sales.
 
-A Next.js web app for practising customer-support, job-interview, and sales
-conversations. The user picks a conversation type and a difficulty, roleplays
-with an LLM counterpart, and then receives an LLM-written feedback report with
-strengths, improvements, and four 0-100 scores. Without an LLM key it runs a
-scripted demo path.
+[한국어](README.ko.md) · [Case study](PORTFOLIO.md)
 
-**What is built:** nine scenario prompts (3 categories x 3 difficulty levels)
-in `lib/personas.ts`; session/chat/feedback API routes; live LLM replies
+A Next.js web app. The user picks a conversation type and a difficulty,
+roleplays with an LLM counterpart, and then receives an LLM-written feedback
+report with strengths, improvements, and four 0-100 scores.
+
+**Problem.** Practicing a hard conversation needs a counterpart who stays in
+role and feedback that arrives in a usable shape, and a reviewer without API
+keys should still be able to walk the whole flow.
+
+**What is built.** Nine scenario prompts (3 categories x 3 difficulty levels)
+in `lib/personas.ts`; session, chat, and feedback API routes; live LLM replies
 through OpenRouter (a hosted gateway to many LLMs) when `OPENROUTER_API_KEY` is
 set and scripted demo replies when it is not; optional Supabase (hosted
 Postgres with auth) persistence and Google sign-in.
 
-**Try it:** `npm ci` then `npm run dev`; chat and feedback return demo content
+**Try it.** `npm ci` then `npm run dev`; chat and feedback return demo content
 without keys (see [Limitations](#limitations) for the Supabase dependency).
 
-Where to look: [case study and design decisions](PORTFOLIO.md) ·
-[application flow](#application-flow) · [running locally](#run-locally) ·
-[limitations](#limitations).
+## At a glance
 
-## What is implemented
-
-LLM-generated parts are marked; everything else is deterministic code.
+LLM-generated parts are marked; everything else is plain code that does not
+go through the LLM.
 
 - Three scenario categories (customer support, interview, sales), each with
   beginner, intermediate, and advanced prompt variants in `lib/personas.ts`.
@@ -59,7 +60,7 @@ flowchart LR
 
 ## Architecture and data handling
 
-| Layer | Responsibility | Evidence |
+| Layer | Responsibility | Files |
 |---|---|---|
 | Client | Scenario selection, chat, feedback view, dashboard, and webview guidance | `app/page.tsx`, `app/roleplay/page.tsx`, `app/feedback/page.tsx`, `app/dashboard/page.tsx`, `components/` |
 | API | Session lifecycle, roleplay response, and structured feedback request | `app/api/session/route.ts`, `app/api/chat/route.ts`, `app/api/feedback/route.ts` |
@@ -83,10 +84,10 @@ integrations you need:
 The database type declaration expects `sessions`, `messages`, and `feedback`
 tables.
 
-## Run locally
+## How to run
 
-Requires Node.js 18.18 or later (the Next.js 15 requirement; no `engines`
-field is pinned). The package scripts use Next.js 15.1.4:
+Requires Node.js 18.18 or later (the Next.js 15 requirement). The package
+scripts use Next.js 15.1.4:
 
 ```powershell
 npm ci
@@ -98,7 +99,7 @@ Open the local URL reported by Next.js. With no variables set, `/api/chat` and
 `/api/feedback` return scripted content and `/api/session` returns a random
 UUID.
 
-## Repository structure
+## Repository layout
 
 ```text
 app/
@@ -115,18 +116,13 @@ public/                 # Logo and favicon
 
 ## Limitations
 
-- Source code only: no verified production deployment, user study, latency benchmark, hiring outcome, or model-quality evaluation.
-- The four scores (`total_score`, `empathy_score`, `problem_solving_score`, `communication_score`) are LLM-generated with no rubric calibration, human rater agreement, test set, fairness analysis, or reliability evidence; use them for practice reflection, not employment, educational, or other high-stakes decisions.
-- The feedback page and dashboard label `empathy_score` as "COMMUNICATION" and `communication_score` as "ADAPTABILITY" (`app/feedback/page.tsx`, `app/dashboard/page.tsx`).
-- The feedback route parses model text as JSON without schema validation; a malformed response returns HTTP 500.
-- The landing page and sign-in button call the Supabase client on load, and `lib/supabase.ts` throws when the Supabase variables are unset, so a browser run without them is unconfirmed (found by reading the code).
-- `npm run lint` and `npm run build` are unconfirmed in a clean `npm ci` install (a November 2026 attempt against an incomplete `node_modules` could not start); `next.config.ts` sets `eslint.ignoreDuringBuilds` and `typescript.ignoreBuildErrors`, so a build alone would not show lint or type checks pass.
-- The Supabase schema and RLS SQL are not versioned here, and there are no integration tests.
-- Demo mode does not bound client-supplied conversation data; no abuse controls, rate limits, or observability around LLM calls.
+- No deployment, user study, latency benchmark, or model-quality evaluation; the app shows a working practice flow, not proven coaching effect.
+- The four scores (`total_score`, `empathy_score`, `problem_solving_score`, `communication_score`) are LLM-generated with no rubric calibration or human-rater agreement; use them for practice reflection, not employment, educational, or other high-stakes decisions.
+- The feedback page and dashboard label `empathy_score` as "COMMUNICATION" and `communication_score` as "ADAPTABILITY".
+- The landing page and sign-in button call the Supabase client on load, and `lib/supabase.ts` throws when the Supabase variables are unset, so the landing page can fail in the browser without them.
+- Lint and type checks are disabled in `next.config.ts`.
 
 ## Documentation
 
-- [Portfolio case study](PORTFOLIO.md)
-- [Project review](docs/PROJECT_REVIEW.md)
+- [Case study](PORTFOLIO.md)
 - [Architecture](docs/ARCHITECTURE.md)
-- [CV bullet guidance](docs/CV_BULLETS.md)
