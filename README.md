@@ -18,8 +18,9 @@ roleplays with an LLM counterpart, and then receives an LLM-written feedback
 report with strengths, improvements, and four 0-100 scores (overall,
 empathy, problem solving, communication).
 
-**Problem.** Practicing a hard conversation needs a counterpart who stays in
-role and feedback that arrives in a usable shape.
+**Problem.** Job seekers and new support or sales staff rarely get to rehearse
+a hard conversation with a counterpart who stays in role, then see feedback in a
+fixed shape (strengths, improvements, four 0–100 scores).
 
 **What is built.** Nine scenario prompts (3 categories x 3 difficulty levels)
 in `lib/personas.ts`; session, chat, and feedback API routes; live LLM replies
@@ -33,7 +34,7 @@ LLM-generated without rubric calibration.
 
 **Try it now.** `npm ci`, then `npm run dev`. No keys are needed: the full
 flow (choose a scenario, chat, get feedback) runs on demo content, and the
-header shows "Sign-in unavailable in demo mode". `npm run lint`,
+header shows "Sign-in unavailable in demo mode". `npm test`, `npm run lint`,
 `npx tsc --noEmit`, and `npm run build` pass with no environment variables.
 
 ## At a glance
@@ -127,6 +128,7 @@ UUID.
 Checks (all pass with no environment variables):
 
 ```powershell
+npm test          # Vitest unit tests for lib/feedback.ts
 npm run lint
 npx tsc --noEmit
 npm run build
@@ -142,7 +144,7 @@ app/
   feedback/            # Per-session LLM feedback display
   dashboard/           # Stored-session summary for signed-in users
 components/             # Authentication and webview UI helpers
-lib/                    # Personas, feedback validation, Supabase client, auth helpers
+lib/                    # Personas, feedback validation (+ feedback.test.ts), Supabase client, auth helpers
 public/                 # Logo and favicon
 .env.example            # Variable names only; no values
 ```
@@ -152,7 +154,7 @@ public/                 # Logo and favicon
 - No deployment, user study, latency benchmark, or model-quality evaluation; the app shows a working practice flow, not proven coaching effect.
 - The four scores (`total_score`, `empathy_score`, `problem_solving_score`, `communication_score`) are LLM-generated with no rubric calibration or human-rater agreement; use them for practice reflection, not employment, educational, or other high-stakes decisions.
 - When the model's JSON fails validation, the user sees the fixed demo report (labeled as demo), not an analysis of their conversation.
-- No automated tests; verification is lint, type check, build, and manual API and browser checks.
+- Unit tests cover only the feedback parser and validator (`lib/feedback.ts`); API routes and the browser flow were checked manually, with no integration tests.
 
 ## Documentation
 

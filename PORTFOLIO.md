@@ -16,8 +16,8 @@ choice keeps live LLM output and the demo responses stored in the repository
 on separate, clearly gated paths.
 
 Try it now: `npm ci`, then `npm run dev`. The full flow runs with no keys.
-`npm run lint`, `npx tsc --noEmit`, and `npm run build` pass with no
-environment variables.
+`npm test`, `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass with
+no environment variables.
 
 What made it hard:
 
@@ -75,6 +75,7 @@ example content rather than an analysis of the user's conversation.
 | Session, chat, and feedback API routes with live/demo gating | `app/api/session`, `app/api/chat`, `app/api/feedback` |
 | Feedback JSON validation, shared score labels, flagged demo fallback | `lib/feedback.ts`, `app/api/feedback/route.ts` |
 | Optional Supabase persistence, Google sign-in, per-user dashboard; demo-mode state when unset | `lib/supabase.ts`, `lib/auth.ts`, `components/AuthButton.tsx`, `app/dashboard/page.tsx` |
+| 17 Vitest unit tests for feedback parsing, validation, and score labels (`npm test`) | `lib/feedback.test.ts` |
 | Lint, type check, and production build pass with no environment variables | `eslint.config.mjs`, `next.config.ts` |
 | Variable names for every integration | `.env.example` |
 
@@ -82,12 +83,11 @@ example content rather than an analysis of the user's conversation.
 
 - A working practice flow, not proven coaching effect: no deployment URL, active-user count, latency data, feedback-quality study, or comparison with another system or human coach.
 - The four scores are a coaching interface, not a hiring or educational assessment.
-- No automated tests; verification is lint, type check, build, and manual API and browser checks.
+- Unit tests cover only the feedback parser and validator (`lib/feedback.ts`); API routes and the browser flow were checked manually, with no integration tests.
 
 ## Next steps
 
-1. Add unit tests for the feedback validator and integration tests for the
-   live and demo paths.
+1. Add integration tests for the live and demo API paths.
 2. Version the Supabase schema and RLS policy.
 3. Define a rubric and measure agreement between LLM scores and trained human
    raters, including checks for bias across scenarios, before presenting the

@@ -15,13 +15,13 @@
 
 Next.js 웹앱입니다. 대화 유형과 난이도를 고르면 LLM 상대와 역할극을 하고, 대화가 끝나면 강점·개선점과 0~100점 척도의 네 가지 점수(종합, 공감, 문제 해결, 커뮤니케이션)가 담긴 LLM 피드백 보고서를 받습니다.
 
-**문제.** 어려운 대화를 연습하려면 끝까지 역할을 지키는 상대와 바로 쓸 수 있는 형태의 피드백이 필요합니다.
+**문제.** 취업 준비생이나 신입 상담·영업 직원은 끝까지 역할을 지키는 상대와 어려운 대화를 연습하고, 정해진 형식(강점, 개선점, 0~100점 4개)의 피드백을 받아 볼 기회가 드뭅니다.
 
 **구현 범위.** `lib/personas.ts`의 시나리오 프롬프트 9개(3개 범주 x 3개 난이도), 세션·채팅·피드백 API 라우트, `OPENROUTER_API_KEY`가 있으면 OpenRouter(여러 LLM을 묶은 호스팅 게이트웨이)로 LLM을 호출하고 없으면 스크립트 데모 응답을 쓰는 분기, 선택 기능인 Supabase(인증을 갖춘 호스팅 Postgres) 저장과 Google 로그인.
 
 **범위.** 연습 흐름이 동작함을 보여줄 뿐 코칭 효과를 입증하지는 않습니다. 배포·사용자 연구·모델 품질 평가가 없고, 네 가지 점수는 루브릭 보정 없이 LLM이 생성합니다.
 
-**바로 실행.** `npm ci` 후 `npm run dev`. 키가 없어도 됩니다. 시나리오 선택, 대화, 피드백까지 전체 흐름이 데모 내용으로 동작하고, 헤더에는 "Sign-in unavailable in demo mode"가 표시됩니다. 환경 변수 없이 `npm run lint`, `npx tsc --noEmit`, `npm run build`가 통과합니다.
+**바로 실행.** `npm ci` 후 `npm run dev`. 키가 없어도 됩니다. 시나리오 선택, 대화, 피드백까지 전체 흐름이 데모 내용으로 동작하고, 헤더에는 "Sign-in unavailable in demo mode"가 표시됩니다. 환경 변수 없이 `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`가 통과합니다.
 
 ## 한눈에 보기
 
@@ -92,6 +92,7 @@ Next.js가 출력하는 로컬 URL을 엽니다. 변수를 하나도 설정하�
 검사(환경 변수 없이 모두 통과):
 
 ```powershell
+npm test          # lib/feedback.ts의 Vitest 단위 테스트
 npm run lint
 npx tsc --noEmit
 npm run build
@@ -107,7 +108,7 @@ app/
   feedback/            # 세션별 LLM 피드백 화면
   dashboard/           # 로그인 사용자의 저장 세션 요약
 components/             # 인증 및 webview UI 보조 컴포넌트
-lib/                    # persona, 피드백 검증, Supabase 클라이언트, 인증 도우미
+lib/                    # persona, 피드백 검증(+ feedback.test.ts), Supabase 클라이언트, 인증 도우미
 public/                 # 로고와 favicon
 .env.example            # 변수 이름만 기재(값 없음)
 ```
@@ -117,7 +118,7 @@ public/                 # 로고와 favicon
 - 배포, 사용자 연구, 응답 지연 측정, 모델 품질 평가가 없습니다. 연습 흐름이 동작함을 보여 줄 뿐, 코칭 효과를 입증하지 않습니다.
 - 네 가지 점수(`total_score`, `empathy_score`, `problem_solving_score`, `communication_score`)는 LLM이 생성하며 루브릭 보정이나 사람 평가자와의 일치도 검증이 없습니다. 연습을 돌아보는 용도로만 쓰고 채용·교육 등 중요한 판단에는 쓰지 않습니다.
 - 모델의 JSON이 검증에 실패하면 사용자는 대화를 분석한 결과가 아니라 고정 데모 보고서(데모로 표시)를 봅니다.
-- 자동화 테스트가 없습니다. 검증은 lint, 타입 검사, 빌드, 수동 API·브라우저 확인입니다.
+- 단위 테스트는 피드백 파서·검증 함수(`lib/feedback.ts`)만 다룹니다. API 라우트와 브라우저 흐름은 수동으로 확인했고 통합 테스트는 없습니다.
 
 ## 문서
 

@@ -10,7 +10,7 @@
 
 고객 응대·면접·영업 대화를 LLM 상대와 연습하고, 강점·개선점과 0~100점 척도의 네 가지 점수로 된 구조화된 피드백을 받는 Next.js 애플리케이션이다. 역할극은 3개 범주 x 3개 난이도, 모두 9개의 시나리오 프롬프트로 움직인다. 핵심 설계는 실제 LLM 출력과 저장소에 포함된 데모 응답을 서로 다른 경로로 분명히 나눈 것이다.
 
-바로 실행: `npm ci` 후 `npm run dev`. 키 없이 전체 흐름이 동작한다. 환경 변수 없이 `npm run lint`, `npx tsc --noEmit`, `npm run build`가 통과한다.
+바로 실행: `npm ci` 후 `npm run dev`. 키 없이 전체 흐름이 동작한다. 환경 변수 없이 `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`가 통과한다.
 
 어려웠던 점:
 
@@ -48,6 +48,7 @@ Supabase 클라이언트 팩토리는 변수가 없으면 `null`을 반환하므
 | 실제/데모 분기를 갖춘 세션·채팅·피드백 API | `app/api/session`, `app/api/chat`, `app/api/feedback` |
 | 피드백 JSON 검증, 공통 점수 이름표, 표시된 데모 대체 응답 | `lib/feedback.ts`, `app/api/feedback/route.ts` |
 | 선택적 Supabase 저장, Google 로그인, 사용자별 대시보드, 미설정 시 데모 모드 표시 | `lib/supabase.ts`, `lib/auth.ts`, `components/AuthButton.tsx`, `app/dashboard/page.tsx` |
+| 피드백 파싱·검증·점수 이름표를 다루는 Vitest 단위 테스트 17개(`npm test`) | `lib/feedback.test.ts` |
 | 환경 변수 없이 lint, 타입 검사, 프로덕션 빌드 통과 | `eslint.config.mjs`, `next.config.ts` |
 | 모든 연동의 변수 이름 | `.env.example` |
 
@@ -55,11 +56,11 @@ Supabase 클라이언트 팩토리는 변수가 없으면 `null`을 반환하므
 
 - 연습 흐름이 동작하는 앱이며, 코칭 효과가 입증된 도구가 아니다. 배포 URL, 활성 사용자 수, 응답 지연 시간, 피드백 품질 연구, 다른 시스템이나 사람 코치와의 비교가 없다.
 - 네 가지 점수는 코칭 인터페이스이며 채용 판단이나 교육 평가가 아니다.
-- 자동화 테스트가 없다. 검증은 lint, 타입 검사, 빌드, 수동 API·브라우저 확인이다.
+- 단위 테스트는 피드백 파서·검증 함수(`lib/feedback.ts`)만 다룬다. API 라우트와 브라우저 흐름은 수동으로 확인했고 통합 테스트는 없다.
 
 ## 다음 단계
 
-1. 피드백 검증 함수의 단위 테스트와 실제·데모 경로의 통합 테스트를 추가한다.
+1. 실제·데모 API 경로의 통합 테스트를 추가한다.
 2. Supabase 스키마와 RLS 정책을 버전 관리한다.
 3. 루브릭을 정의하고 LLM 점수와 훈련된 사람 평가자 사이의 일치도, 시나리오별 편향을 측정한다. 그 전에는 점수를 연습용 피드백 이상으로 내세우지 않는다.
 
