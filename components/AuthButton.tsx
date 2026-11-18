@@ -1,20 +1,24 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User, LogOut, Loader2 } from 'lucide-react'
+import type { User } from '@supabase/supabase-js'
+import { LogOut, Loader2, FlaskConical } from 'lucide-react'
 import { signInWithGoogle, signOut, getUser } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 
 export default function AuthButton() {
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const supabase = getSupabase()
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(supabase !== null)
 
   useEffect(() => {
+    if (!supabase) return
+
     // Check active session
-    getUser().then(user => {
-      setUser(user)
-      setLoading(false)
-    })
+    getUser()
+      .then((u) => setUser(u))
+      .catch((err) => console.error('Failed to read user:', err))
+      .finally(() => setLoading(false))
 
     // Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -23,7 +27,21 @@ export default function AuthButton() {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [supabase])
+
+  if (!supabase) {
+    return (
+      <div
+        className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] sm:text-xs font-bold text-slate-500 whitespace-nowrap"
+        title="Supabase 환경 변수가 없어 로그인이 비활성화되었습니다. 연습과 피드백은 그대로 사용할 수 있습니다."
+        role="status"
+      >
+        <FlaskConical className="w-4 h-4 flex-shrink-0" />
+        <span className="hidden sm:inline">Sign-in unavailable in demo mode</span>
+        <span className="sm:hidden">Demo mode</span>
+      </div>
+    )
+  }
 
   const handleLogin = async () => {
     try {
@@ -60,6 +78,7 @@ export default function AuthButton() {
         <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl">
           <div className="w-6 h-6 rounded-full bg-[var(--primary)] flex items-center justify-center text-[10px] text-white font-black overflow-hidden">
             {user.user_metadata?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element -- external OAuth avatar URL
                 <img src={user.user_metadata.avatar_url} alt="avatar" />
             ) : (
                 user.email?.charAt(0).toUpperCase()

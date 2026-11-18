@@ -55,28 +55,28 @@ function RoleplayContent() {
       router.push('/')
       return
     }
+
+    async function initSession() {
+      try {
+        const params = new URLSearchParams({ sessionId: sessionId ?? '', category, difficulty })
+        const res = await fetch(`/api/chat?${params}`)
+        const data = await res.json()
+        if (data.message) {
+          setMessages([{ role: 'assistant', content: data.message }])
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setInitializing(false)
+      }
+    }
+
     initSession()
-  }, [sessionId])
+  }, [sessionId, category, difficulty, router])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  async function initSession() {
-    try {
-      const res = await fetch(
-        `/api/chat?sessionId=${sessionId}&category=${category}&difficulty=${difficulty}`
-      )
-      const data = await res.json()
-      if (data.message) {
-        setMessages([{ role: 'assistant', content: data.message }])
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setInitializing(false)
-    }
-  }
 
   async function handleSend() {
     if (!input.trim() || loading) return
@@ -124,10 +124,16 @@ function RoleplayContent() {
       })
       const data = await res.json()
       if (data.feedback) {
-        sessionStorage.setItem(`feedback_${sessionId}`, JSON.stringify(data.feedback))
+        // Keep the demo flag with the report so the feedback page can label it.
+        sessionStorage.setItem(
+          `feedback_${sessionId}`,
+          JSON.stringify({ feedback: data.feedback, demo: !!data.demo, fallbackReason: data.fallbackReason }),
+        )
         router.push(
           `/feedback?sessionId=${sessionId}&category=${category}&difficulty=${difficulty}`
         )
+      } else {
+        alert('피드백 생성에 실패했습니다.')
       }
     } catch (err) {
       console.error(err)

@@ -3,18 +3,21 @@ export const runtime = 'edge'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { isSupabaseConfigured } from '@/lib/supabase'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   // if "next" is in search params, use it as the redirection URL
-  const next = searchParams.get('next') ?? '/'
+  // Only allow same-origin relative paths to avoid an open redirect.
+  const nextParam = searchParams.get('next') ?? '/'
+  const next = nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '/'
 
-  if (code) {
+  if (code && isSupabaseConfigured()) {
     const cookieStore = await cookies()
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
       {
         cookies: {
           getAll() {

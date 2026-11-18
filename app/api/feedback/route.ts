@@ -2,23 +2,11 @@ export const runtime = 'edge'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { categoryLabels, difficultyLabels, Category, Difficulty } from '@/lib/personas'
+import { DEMO_FEEDBACK, extractJson, validateFeedback } from '@/lib/feedback'
+import { getSupabase } from '@/lib/supabase'
 
 const isDemoMode = !process.env.OPENROUTER_API_KEY ||
   process.env.OPENROUTER_API_KEY === 'your_openrouter_api_key_here'
-
-const isSupabaseEnabled = !!(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  process.env.NEXT_PUBLIC_SUPABASE_URL !== 'your_supabase_project_url_here'
-)
-
-const mockFeedback = {
-  strengths: '• 고객의 감정에 공감하며 경청하는 자세를 보여주었습니다.\n• 문제 해결 의지를 명확하게 표현했습니다.\n• 상대방의 말을 끊지 않고 끝까지 들었습니다.',
-  improvements: '• 구체적인 해결 일정을 먼저 제시했다면 더 효과적이었을 것입니다.\n• 사과 표현이 다소 형식적으로 느껴질 수 있습니다. 더 진심 어린 표현을 연습해 보세요.\n• 대안을 제시할 때 선택지를 2가지 이상 제공하면 고객 만족도가 높아집니다.',
-  total_score: 72,
-  empathy_score: 78,
-  problem_solving_score: 65,
-  communication_score: 74,
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     if (isDemoMode) {
       await new Promise(r => setTimeout(r, 1200))
-      return NextResponse.json({ feedback: mockFeedback, sessionId })
+      return NextResponse.json({ feedback: DEMO_FEEDBACK, sessionId, demo: true })
     }
 
     // Supabase에서 대화 기록 가져오기 (또는 클라이언트에서 전달받은 messages 사용)
@@ -38,8 +26,8 @@ export async function POST(req: NextRequest) {
     let categoryLabel = categoryLabels[(category || 'customer') as Category]
     let difficultyLabel = difficultyLabels[(difficulty || 'beginner') as Difficulty]
 
-    if (isSupabaseEnabled) {
-      const { supabase } = await import('@/lib/supabase')
+    const supabase = getSupabase()
+    if (supabase) {
       const [{ data: session }, { data: dbMessages }] = await Promise.all([
         supabase.from('sessions').select('*').eq('id', sessionId).single(),
         supabase.from('messages').select('*').eq('session_id', sessionId).order('created_at'),
@@ -52,7 +40,7 @@ export async function POST(req: NextRequest) {
       categoryLabel = categoryLabels[session.category as Category]
       difficultyLabel = difficultyLabels[session.difficulty as Difficulty]
       conversationText = dbMessages
-        .map(m => `[${m.role === 'assistant' ? 'AI 고객' : '수강생'}]: ${m.content}`)
+        .map((m: { role: string; content: string }) => `[${m.role === 'assistant' ? 'AI 고객' : '수강생'}]: ${m.content}`)
         .join('\n\n')
     } else if (clientMessages) {
       // Supabase 없을 때 클라이언트가 보낸 messages 배열 사용
@@ -92,14 +80,24 @@ ${conversationText}
       messages: [{ role: 'user', content: feedbackPrompt }],
     })
 
-    const rawText = response.choices[0].message.content || '{}'
-    // JSON 블록이 ```json ... ``` 으로 감싸진 경우 추출
-    const codeBlock = rawText.match(/```json\s*([\s\S]*?)```/)
-    const jsonStr = codeBlock ? codeBlock[1] : (rawText.match(/\{[\s\S]*\}/) || [rawText])[0]
-    const feedbackData = JSON.parse(jsonStr)
+    const rawText = response.choices[0]?.message?.content || ''
+    const result = validateFeedback(extractJson(rawText))
 
-    if (isSupabaseEnabled) {
-      const { supabase } = await import('@/lib/supabase')
+    if (!result.ok) {
+      // Malformed or out-of-range model output: return the demo report with a
+      // flag instead of failing, and do not persist it as a real result.
+      console.warn('Feedback validation failed:', result.errors.join('; '))
+      return NextResponse.json({
+        feedback: DEMO_FEEDBACK,
+        sessionId,
+        demo: true,
+        fallbackReason: 'invalid_llm_output',
+      })
+    }
+
+    const feedbackData = result.data
+
+    if (supabase) {
       await Promise.all([
         supabase.from('feedback').insert({
           session_id: sessionId,
@@ -109,7 +107,7 @@ ${conversationText}
       ])
     }
 
-    return NextResponse.json({ feedback: feedbackData, sessionId })
+    return NextResponse.json({ feedback: feedbackData, sessionId, demo: false })
   } catch (error) {
     console.error('Feedback API error:', error)
     return NextResponse.json({ error: 'Failed to generate feedback' }, { status: 500 })

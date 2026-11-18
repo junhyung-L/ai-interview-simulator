@@ -2,28 +2,60 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { 
-  Trophy, 
-  Target, 
-  MessageSquare, 
-  ArrowLeft, 
+import { getSupabase } from '@/lib/supabase'
+import { FeedbackData, SCORE_LABELS, SUB_SCORES, SubScoreKey, validateFeedback } from '@/lib/feedback'
+import {
+  Trophy,
+  MessageSquare,
+  ArrowLeft,
   LayoutDashboard,
   Zap,
   CheckCircle2,
   AlertCircle,
   Loader2,
   TrendingUp,
-  Award
+  Award,
+  FlaskConical,
+  type LucideIcon,
 } from 'lucide-react'
 
-interface FeedbackData {
-  strengths: string
-  improvements: string
-  total_score: number
-  empathy_score: number
-  problem_solving_score: number
-  communication_score: number
+const SUB_SCORE_ICONS: Record<SubScoreKey, LucideIcon> = {
+  empathy_score: MessageSquare,
+  problem_solving_score: Trophy,
+  communication_score: TrendingUp,
+}
+
+/** Renders model text as plain bullet lines (no HTML injection). */
+function BulletText({ text, marker, markerClass }: { text: string; marker: string; markerClass: string }) {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  return (
+    <ul className="space-y-2">
+      {lines.map((line, i) => {
+        const bullet = /^([•\-*]|\d+\.)\s*/.exec(line)
+        return (
+          <li key={i} className="flex items-start">
+            {bullet && <span className={`${markerClass} font-bold mr-2`}>{marker}</span>}
+            <span>{bullet ? line.slice(bullet[0].length) : line}</span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+/** Reads the cached /api/feedback response (or a bare feedback object from older builds). */
+function readCachedFeedback(raw: string): { feedback: FeedbackData; demo: boolean } | null {
+  try {
+    const parsed = JSON.parse(raw)
+    const candidate = parsed && typeof parsed === 'object' && 'feedback' in parsed ? parsed.feedback : parsed
+    const result = validateFeedback(candidate)
+    return result.ok ? { feedback: result.data, demo: !!parsed.demo } : null
+  } catch {
+    return null
+  }
 }
 
 const categoryLabels: Record<string, string> = {
@@ -38,7 +70,7 @@ const difficultyLabels: Record<string, string> = {
   advanced: '고급',
 }
 
-function ScoreRing({ score, label, color, icon: Icon }: { score: number; label: string; color: string; icon: any }) {
+function ScoreRing({ score, label, color, icon: Icon }: { score: number; label: string; color: string; icon: LucideIcon }) {
   const radius = 32
   const circumference = 2 * Math.PI * radius
   const dash = (score / 100) * circumference
@@ -89,6 +121,7 @@ function FeedbackContent() {
   const difficulty = searchParams.get('difficulty') || ''
 
   const [feedback, setFeedback] = useState<FeedbackData | null>(null)
+  const [isDemo, setIsDemo] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -96,52 +129,54 @@ function FeedbackContent() {
       router.push('/')
       return
     }
-    loadFeedback()
-  }, [sessionId])
 
-  async function loadFeedback() {
-    try {
-      const cached = sessionStorage.getItem(`feedback_${sessionId}`)
-      if (cached) {
-        setFeedback(JSON.parse(cached))
-        setLoading(false)
-        return
-      }
-
-      const isSupabaseEnabled = !!(
-        process.env.NEXT_PUBLIC_SUPABASE_URL &&
-        process.env.NEXT_PUBLIC_SUPABASE_URL !== 'your_supabase_project_url_here'
-      )
-      if (isSupabaseEnabled) {
-        const { data, error } = await supabase
-          .from('feedback')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
-
-        if (!error && data) {
-          setFeedback(data)
+    async function loadFeedback() {
+      try {
+        const cached = sessionStorage.getItem(`feedback_${sessionId}`)
+        const fromCache = cached ? readCachedFeedback(cached) : null
+        if (fromCache) {
+          setFeedback(fromCache.feedback)
+          setIsDemo(fromCache.demo)
           return
         }
-      }
 
-      const res = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      })
-      const result = await res.json()
-      if (result.feedback) {
-        setFeedback(result.feedback)
+        // Stored history is available only when Supabase is configured.
+        const supabase = getSupabase()
+        if (supabase) {
+          const { data, error } = await supabase
+            .from('feedback')
+            .select('*')
+            .eq('session_id', sessionId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single()
+
+          const stored = !error ? validateFeedback(data) : null
+          if (stored?.ok) {
+            setFeedback(stored.data)
+            return
+          }
+        }
+
+        const res = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, category, difficulty }),
+        })
+        const result = await res.json()
+        if (result.feedback) {
+          setFeedback(result.feedback)
+          setIsDemo(!!result.demo)
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
       }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
     }
-  }
+
+    loadFeedback()
+  }, [sessionId, category, difficulty, router])
 
   if (loading) {
     return (
@@ -218,6 +253,19 @@ function FeedbackContent() {
           <span className="text-slate-400 font-medium">Session Complete</span>
         </div>
 
+        {isDemo && (
+          <div
+            role="status"
+            className="flex items-start gap-3 p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl text-sm font-bold text-amber-700"
+          >
+            <FlaskConical className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <span>
+              데모 피드백입니다. LLM 키가 없거나 모델 응답이 형식 검증을 통과하지 못해, 저장소에 들어 있는 고정 예시 리포트를 보여줍니다.
+              실제 대화를 분석한 결과가 아닙니다.
+            </span>
+          </div>
+        )}
+
         {/* Hero Score Card */}
         <div className="bg-white border-2 border-[var(--border)] rounded-[2rem] sm:rounded-[2.5rem] p-8 sm:p-10 md:p-14 shadow-[12px_12px_0px_0px_rgba(186,230,253,0.5)] flex flex-col md:flex-row items-center gap-10 md:gap-12">
           <div className="flex-1 space-y-6 text-center md:text-left">
@@ -248,9 +296,15 @@ function FeedbackContent() {
 
         {/* Sub Scores Grid */}
         <div className="bg-white border-2 border-[var(--border)] rounded-[2rem] sm:rounded-[2.5rem] p-8 sm:p-10 grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-10">
-          <ScoreRing score={feedback.empathy_score} label="COMMUNICATION" color="#0EA5E9" icon={MessageSquare} />
-          <ScoreRing score={feedback.problem_solving_score} label="PROBLEM SOLVING" color="#8B5CF6" icon={Trophy} />
-          <ScoreRing score={feedback.communication_score} label="ADAPTABILITY" color="#10B981" icon={TrendingUp} />
+          {SUB_SCORES.map(({ key, color }) => (
+            <ScoreRing
+              key={key}
+              score={feedback[key]}
+              label={SCORE_LABELS[key].label}
+              color={color}
+              icon={SUB_SCORE_ICONS[key]}
+            />
+          ))}
         </div>
 
         {/* Detailed Feedback Cards */}
@@ -263,15 +317,9 @@ function FeedbackContent() {
               </div>
               <h3 className="text-xl font-black text-[var(--foreground)] tracking-tight">강점 분석</h3>
             </div>
-            <div
-              className="text-[15px] font-medium text-slate-600 leading-relaxed prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{
-                __html: String(Array.isArray(feedback.strengths) ? feedback.strengths.join('\n') : feedback.strengths)
-                  .replace(/\n/g, '<br />')
-                  .replace(/•\s/g, '<span class="text-emerald-500 font-bold mr-2">✓</span>')
-                  .replace(/^\-\s/gm, '<span class="text-emerald-500 font-bold mr-2">✓</span>'),
-              }}
-            />
+            <div className="text-[15px] font-medium text-slate-600 leading-relaxed">
+              <BulletText text={feedback.strengths} marker="✓" markerClass="text-emerald-500" />
+            </div>
           </div>
 
           {/* Improvements */}
@@ -282,15 +330,9 @@ function FeedbackContent() {
               </div>
               <h3 className="text-xl font-black text-[var(--foreground)] tracking-tight">개선 제안</h3>
             </div>
-            <div
-              className="text-[15px] font-medium text-slate-600 leading-relaxed prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{
-                __html: String(Array.isArray(feedback.improvements) ? feedback.improvements.join('\n') : feedback.improvements)
-                  .replace(/\n/g, '<br />')
-                  .replace(/•\s/g, '<span class="text-amber-500 font-bold mr-2">!</span>')
-                  .replace(/^\-\s/gm, '<span class="text-amber-500 font-bold mr-2">!</span>'),
-              }}
-            />
+            <div className="text-[15px] font-medium text-slate-600 leading-relaxed">
+              <BulletText text={feedback.improvements} marker="!" markerClass="text-amber-500" />
+            </div>
           </div>
         </div>
 

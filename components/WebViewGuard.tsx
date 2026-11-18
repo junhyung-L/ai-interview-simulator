@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Copy, ExternalLink, Smartphone, AlertCircle, X } from 'lucide-react'
+import { Copy, Smartphone, AlertCircle } from 'lucide-react'
 
 export default function WebViewGuard() {
   const [isWebView, setIsWebView] = useState(false)

@@ -18,5 +18,9 @@ flowchart LR
 ```
 
 The database path is conditional: the code writes sessions, messages, and
-feedback only when its Supabase configuration check passes. Route-level details
+feedback only when its Supabase configuration check passes. Without Supabase
+variables, `getSupabase()` in `lib/supabase.ts` returns `null` and every caller
+skips auth and storage. The feedback route validates model JSON with
+`validateFeedback()` in `lib/feedback.ts` and returns the demo report with
+`demo: true` when validation fails. Route-level details
 are implemented in the application source tree.

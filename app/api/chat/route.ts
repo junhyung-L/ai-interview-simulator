@@ -3,14 +3,10 @@ export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { getOpeningMessage, Category, Difficulty, getSystemPrompt } from '@/lib/personas'
+import { getSupabase } from '@/lib/supabase'
 
 const isDemoMode = !process.env.OPENROUTER_API_KEY ||
   process.env.OPENROUTER_API_KEY === 'your_openrouter_api_key_here'
-
-const isSupabaseEnabled = !!(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  process.env.NEXT_PUBLIC_SUPABASE_URL !== 'your_supabase_project_url_here'
-)
 
 const MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-exp:free'
 
@@ -59,7 +55,8 @@ async function callLLM(systemPrompt: string, messages: { role: 'user' | 'assista
 // POST /api/chat
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId, message, category, difficulty, messages } = await req.json()
+    const { sessionId, message, category, difficulty, messages: rawMessages } = await req.json()
+    const messages: { role: string; content: string }[] = Array.isArray(rawMessages) ? rawMessages : []
 
     if (!sessionId || !category || !difficulty) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -69,12 +66,12 @@ export async function POST(req: NextRequest) {
 
     if (isDemoMode) {
       const replies = mockReplies[category] || mockReplies.customer
-      const userTurnCount = (messages as { role: string }[]).filter(m => m.role === 'user').length
+      const userTurnCount = messages.filter(m => m.role === 'user').length
       assistantMessage = replies[userTurnCount % replies.length]
       await new Promise(r => setTimeout(r, 600))
     } else {
       const systemPrompt = getSystemPrompt(category as Category, difficulty as Difficulty)
-      const chatMessages = (messages as { role: string; content: string }[]).map(m => ({
+      const chatMessages = messages.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
       }))
@@ -83,8 +80,8 @@ export async function POST(req: NextRequest) {
       assistantMessage = await callLLM(systemPrompt, chatMessages)
     }
 
-    if (isSupabaseEnabled) {
-      const { supabase } = await import('@/lib/supabase')
+    const supabase = getSupabase()
+    if (supabase) {
       if (message) {
         await supabase.from('messages').insert({ session_id: sessionId, role: 'user', content: message })
       }
@@ -112,8 +109,8 @@ export async function GET(req: NextRequest) {
 
     const openingMessage = getOpeningMessage(category as Category, difficulty as Difficulty)
 
-    if (isSupabaseEnabled) {
-      const { supabase } = await import('@/lib/supabase')
+    const supabase = getSupabase()
+    if (supabase) {
       await supabase.from('messages').insert({ session_id: sessionId, role: 'assistant', content: openingMessage })
     }
 

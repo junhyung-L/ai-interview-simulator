@@ -4,6 +4,8 @@ LLM roleplay practice for interviews, customer support, and sales.
 
 [English](PORTFOLIO.md) | [한국어](PORTFOLIO.ko.md) · [README](README.md)
 
+Built in 8 days for the 2026 KEG Vibe Coding Contest (Apr 6–13, 2026).
+
 ## At a glance
 
 A Next.js application for practicing customer-support, interview, and sales
@@ -12,6 +14,10 @@ strengths, improvements, and four 0-100 scores. Nine scenario prompts (three
 categories x three difficulty levels) drive the roleplay. The central design
 choice keeps live LLM output and the demo responses stored in the repository
 on separate, clearly gated paths.
+
+Try it now: `npm ci`, then `npm run dev`. The full flow runs with no keys.
+`npm run lint`, `npx tsc --noEmit`, and `npm run build` pass with no
+environment variables.
 
 What made it hard:
 
@@ -34,8 +40,11 @@ Supabase only when its URL is set and otherwise issues a UUID; demo feedback
 lives only in browser `sessionStorage`.
 Why: a reviewer can walk the flow without secrets, and demo content never lands
 in the same store as real sessions.
-Cost: two code paths per route, fixed demo scores that can look like real
-output, and a landing page that still calls the Supabase client on load.
+The Supabase client factory returns `null` when its variables are unset, so
+sign-in shows as unavailable and history degrades to a notice.
+Cost: two code paths per route, a `null` check at every Supabase caller, and
+fixed demo scores that can look like real output (the feedback page labels
+them as demo).
 
 **2. Which LLM interface.**
 Options: a single vendor SDK, or the OpenAI-compatible client pointed at
@@ -51,8 +60,12 @@ Options: free-text coaching, or JSON with fixed fields.
 Choice: JSON with strengths, improvements, `total_score`, `empathy_score`,
 `problem_solving_score`, and `communication_score`.
 Why: the UI can draw score rings and the dashboard can average stored results.
-Cost: the numbers look precise but are uncalibrated, and the route parses model
-text as JSON without schema validation, so a malformed reply returns HTTP 500.
+A hand-written validator (`lib/feedback.ts`) checks two non-empty text fields
+and four scores from 0 to 100; invalid output returns the demo report flagged
+`demo: true` instead of HTTP 500. One label map (`SCORE_LABELS`) names the
+scores on every screen.
+Cost: the numbers look precise but are uncalibrated, and an invalid reply shows
+example content rather than an analysis of the user's conversation.
 
 ## Results
 
@@ -60,25 +73,23 @@ text as JSON without schema validation, so a malformed reply returns HTTP 500.
 |---|---|
 | Nine scenario prompts and fixed opening lines | `lib/personas.ts` |
 | Session, chat, and feedback API routes with live/demo gating | `app/api/session`, `app/api/chat`, `app/api/feedback` |
-| Optional Supabase persistence, Google sign-in, per-user dashboard | `lib/supabase.ts`, `lib/auth.ts`, `app/dashboard/page.tsx` |
+| Feedback JSON validation, shared score labels, flagged demo fallback | `lib/feedback.ts`, `app/api/feedback/route.ts` |
+| Optional Supabase persistence, Google sign-in, per-user dashboard; demo-mode state when unset | `lib/supabase.ts`, `lib/auth.ts`, `components/AuthButton.tsx`, `app/dashboard/page.tsx` |
+| Lint, type check, and production build pass with no environment variables | `eslint.config.mjs`, `next.config.ts` |
 | Variable names for every integration | `.env.example` |
 
 ## Limitations
 
 - A working practice flow, not proven coaching effect: no deployment URL, active-user count, latency data, feedback-quality study, or comparison with another system or human coach.
 - The four scores are a coaching interface, not a hiring or educational assessment.
-- The feedback page and dashboard label `empathy_score` as "COMMUNICATION" and `communication_score` as "ADAPTABILITY".
-- Without the Supabase variables, the landing page can fail in the browser because it calls the Supabase client on load.
+- No automated tests; verification is lint, type check, build, and manual API and browser checks.
 
 ## Next steps
 
-1. Fix the score labels and validate the feedback JSON against a schema at the
-   API boundary.
-2. Guard the Supabase calls on the landing page so the no-credential demo path
-   works end to end.
-3. Version the Supabase schema and RLS policy and add integration tests for the
+1. Add unit tests for the feedback validator and integration tests for the
    live and demo paths.
-4. Define a rubric and measure agreement between LLM scores and trained human
+2. Version the Supabase schema and RLS policy.
+3. Define a rubric and measure agreement between LLM scores and trained human
    raters, including checks for bias across scenarios, before presenting the
    scores as anything beyond practice feedback.
 

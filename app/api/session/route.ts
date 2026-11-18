@@ -1,9 +1,7 @@
 export const runtime = 'edge'
 
 import { NextRequest, NextResponse } from 'next/server'
-
-const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL === 'your_supabase_project_url_here'
+import { getSupabase } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,13 +11,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    if (isDemoMode) {
+    const supabase = getSupabase()
+    if (!supabase) {
+      // Demo mode: no database, so issue a random session id.
       return NextResponse.json({
-        session: { id: crypto.randomUUID(), student_name: studentName, category, difficulty, status: 'active', user_id: userId }
+        session: { id: crypto.randomUUID(), student_name: studentName, category, difficulty, status: 'active', user_id: userId ?? null },
+        demo: true,
       })
     }
 
-    const { supabase } = await import('@/lib/supabase')
     const { data, error } = await supabase
       .from('sessions')
       .insert({ 

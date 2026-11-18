@@ -1,30 +1,31 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { SupabaseClient } from '@supabase/supabase-js'
 
+const PLACEHOLDER_URL = 'your_supabase_project_url_here'
+
 let _supabase: SupabaseClient | null = null
 
-function getSupabase(): SupabaseClient {
+/** True when both public Supabase variables are set to real values. */
+export function isSupabaseConfigured(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  return !!(url && key && url !== PLACEHOLDER_URL)
+}
+
+/**
+ * Returns the shared Supabase client, or null when the public Supabase
+ * variables are unset (demo mode). Callers must handle the null case.
+ */
+export function getSupabase(): SupabaseClient | null {
+  if (!isSupabaseConfigured()) return null
   if (!_supabase) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!url || !key) {
-      throw new Error('Supabase environment variables are not set')
-    }
-    _supabase = createBrowserClient(url, key)
+    _supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
+    )
   }
   return _supabase
 }
-
-export const supabase = new Proxy({} as SupabaseClient, {
-  get(_target, prop) {
-    const client = getSupabase()
-    const value = (client as unknown as Record<string | symbol, unknown>)[prop]
-    if (typeof value === 'function') {
-      return value.bind(client)
-    }
-    return value
-  },
-})
 
 export type Database = {
   public: {

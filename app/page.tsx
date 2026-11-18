@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import type { User as AuthUser } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabase'
 import { 
   Target, 
   Briefcase, 
@@ -10,7 +11,6 @@ import {
   User, 
   ArrowRight, 
   Check,
-  Zap
 } from 'lucide-react'
 import AuthButton from '@/components/AuthButton'
 
@@ -74,15 +74,21 @@ export default function HomePage() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null)
   const [studentName, setStudentName] = useState('')
   const [loading, setLoading] = useState(false)
-  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
+  const supabase = getSupabase()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setCurrentUser(session?.user ?? null)
-      if (session?.user?.user_metadata?.full_name) {
-        setStudentName(session.user.user_metadata.full_name)
-      }
-    })
+    // Demo mode (no Supabase variables): skip auth entirely.
+    if (!supabase) return
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setCurrentUser(session?.user ?? null)
+        if (session?.user?.user_metadata?.full_name) {
+          setStudentName(session.user.user_metadata.full_name)
+        }
+      })
+      .catch((err) => console.error('Failed to read session:', err))
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setCurrentUser(session?.user ?? null)
@@ -91,7 +97,7 @@ export default function HomePage() {
       }
     })
     return () => subscription.unsubscribe()
-  }, [])
+  }, [supabase])
 
   const canStart = selectedCategory && selectedDifficulty && studentName.trim()
 
@@ -140,6 +146,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white flex items-center justify-center shadow-sm overflow-hidden border-2 border-[var(--border)]">
+              {/* eslint-disable-next-line @next/next/no-img-element -- small static logo; next/image adds no benefit here */}
               <img src="/logo.png" alt="Job Simulator AI Logo" className="w-full h-full object-contain scale-[1.35]" />
             </div>
             <span className="font-bold text-lg md:text-xl tracking-tight text-[var(--foreground)] truncate max-w-[150px] sm:max-w-none">Job Simulator AI</span>
@@ -193,6 +200,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-4 p-5 bg-blue-50 border-2 border-blue-100 rounded-2xl">
                   <div className="w-14 h-14 rounded-full bg-[var(--primary)] text-white flex items-center justify-center text-xl font-black shadow-sm overflow-hidden">
                     {currentUser.user_metadata?.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- external OAuth avatar URL
                       <img src={currentUser.user_metadata.avatar_url} alt="avatar" />
                     ) : (
                       currentUser.email?.charAt(0).toUpperCase()
@@ -219,7 +227,9 @@ export default function HomePage() {
                   </div>
                   <div className="mt-3 py-2 px-4 bg-amber-50 rounded-xl border border-amber-100 text-[10px] font-bold text-amber-600 uppercase tracking-widest flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                    로그인하면 연습 기록이 대시보드에 안전하게 저장됩니다
+                    {supabase
+                      ? '로그인하면 연습 기록이 대시보드에 안전하게 저장됩니다'
+                      : '데모 모드: 로그인과 기록 저장 없이 연습과 피드백을 바로 체험할 수 있습니다'}
                   </div>
                 </div>
               )}

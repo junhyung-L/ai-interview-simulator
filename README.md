@@ -4,9 +4,19 @@ LLM roleplay practice for interviews, customer support, and sales.
 
 [한국어](README.ko.md) · [Case study](PORTFOLIO.md)
 
+Built in 8 days for the 2026 KEG Vibe Coding Contest (Apr 6–13, 2026).
+
+<p>
+  <img src="docs/images/landing-demo.png" width="49%" alt="Landing page in demo mode: scenario form with a 'Sign-in unavailable in demo mode' badge in the header">
+  <img src="docs/images/feedback-demo.png" width="49%" alt="Feedback page in demo mode: a demo-content notice, overall grade B (72), and Empathy, Problem solving, and Communication score rings">
+</p>
+
+*Demo mode with no environment variables: the landing page (left) and the labeled demo feedback report (right).*
+
 A Next.js web app. The user picks a conversation type and a difficulty,
 roleplays with an LLM counterpart, and then receives an LLM-written feedback
-report with strengths, improvements, and four 0-100 scores.
+report with strengths, improvements, and four 0-100 scores (overall,
+empathy, problem solving, communication).
 
 **Problem.** Practicing a hard conversation needs a counterpart who stays in
 role and feedback that arrives in a usable shape.
@@ -21,9 +31,10 @@ Postgres with auth) persistence and Google sign-in.
 deployment, user study, or model-quality evaluation, and the four scores are
 LLM-generated without rubric calibration.
 
-**Try it.** `npm ci`, set the two `NEXT_PUBLIC_SUPABASE_*` variables (the
-landing page needs them), then `npm run dev`; chat and feedback return demo
-content without an LLM key.
+**Try it now.** `npm ci`, then `npm run dev`. No keys are needed: the full
+flow (choose a scenario, chat, get feedback) runs on demo content, and the
+header shows "Sign-in unavailable in demo mode". `npm run lint`,
+`npx tsc --noEmit`, and `npm run build` pass with no environment variables.
 
 ## At a glance
 
@@ -41,8 +52,17 @@ go through the LLM.
 - A feedback route that requests structured strengths, improvements, and four
   numeric scores from the LLM (**LLM-generated**), or returns fixed demo
   feedback without an API key.
+- A hand-written validator (`lib/feedback.ts`) that checks the model's JSON:
+  two non-empty text fields and four scores from 0 to 100. Invalid output
+  returns the demo report with `demo: true` and
+  `fallbackReason: "invalid_llm_output"` instead of HTTP 500, and the feedback
+  page labels it as demo content.
+- One shared label map (`SCORE_LABELS`) for the feedback page and dashboard,
+  matching the prompt's score definitions.
 - Optional Google OAuth, Supabase persistence, per-session feedback display,
   and a dashboard that aggregates stored feedback for the signed-in user.
+  Without Supabase, `getSupabase()` returns `null`, every caller skips auth and
+  storage, and the dashboard shows a demo-mode notice.
 
 ## Application flow
 
@@ -57,7 +77,7 @@ flowchart LR
     F --> H[Conversation and optional message persistence]
     G --> H
     H --> I["/api/feedback"]
-    I --> J[LLM feedback or fixed demo feedback]
+    I --> J[Validated LLM feedback or flagged demo feedback]
     J --> K[Feedback page]
     K --> L[Optional Supabase dashboard]
 ```
@@ -69,7 +89,8 @@ flowchart LR
 | Client | Scenario selection, chat, feedback view, dashboard, and webview guidance | `app/page.tsx`, `app/roleplay/page.tsx`, `app/feedback/page.tsx`, `app/dashboard/page.tsx`, `components/` |
 | API | Session lifecycle, roleplay response, and structured feedback request | `app/api/session/route.ts`, `app/api/chat/route.ts`, `app/api/feedback/route.ts` |
 | LLM | Scenario prompts in `lib/personas.ts`; OpenRouter-compatible chat completion calls in API routes | `lib/personas.ts`, `app/api/chat/route.ts`, `app/api/feedback/route.ts` |
-| Persistence | Supabase browser client and tables for sessions, messages, and feedback | `lib/supabase.ts`, `lib/auth.ts` |
+| Validation | Feedback shape check, score labels, demo report | `lib/feedback.ts` |
+| Persistence | Optional Supabase client (`null` when unset) and tables for sessions, messages, and feedback | `lib/supabase.ts`, `lib/auth.ts` |
 
 Without Supabase credentials, the API routes use the demo path and the client
 keeps feedback in `sessionStorage` only.
@@ -83,7 +104,7 @@ integrations you need:
 |---|---|---|
 | `OPENROUTER_API_KEY` | Live LLM replies and feedback | Scripted demo replies and fixed demo feedback |
 | `OPENROUTER_MODEL` | Overrides the model | `google/gemini-2.0-flash-exp:free` (source default) |
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Google sign-in and database persistence | Random session UUID; feedback kept in `sessionStorage` |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Google sign-in and database persistence | Sign-in disabled; random session UUID; feedback kept in `sessionStorage` |
 
 The database type declaration expects `sessions`, `messages`, and `feedback`
 tables.
@@ -95,13 +116,21 @@ scripts use Next.js 15.1.4:
 
 ```powershell
 npm ci
-copy .env.example .env.local   # optional; see the table above
 npm run dev
+# optional: copy .env.example .env.local and fill in keys (see the table above)
 ```
 
 Open the local URL reported by Next.js. With no variables set, `/api/chat` and
 `/api/feedback` return scripted content and `/api/session` returns a random
 UUID.
+
+Checks (all pass with no environment variables):
+
+```powershell
+npm run lint
+npx tsc --noEmit
+npm run build
+```
 
 ## Repository layout
 
@@ -113,7 +142,7 @@ app/
   feedback/            # Per-session LLM feedback display
   dashboard/           # Stored-session summary for signed-in users
 components/             # Authentication and webview UI helpers
-lib/                    # Personas, Supabase client, and auth helpers
+lib/                    # Personas, feedback validation, Supabase client, auth helpers
 public/                 # Logo and favicon
 .env.example            # Variable names only; no values
 ```
@@ -122,9 +151,8 @@ public/                 # Logo and favicon
 
 - No deployment, user study, latency benchmark, or model-quality evaluation; the app shows a working practice flow, not proven coaching effect.
 - The four scores (`total_score`, `empathy_score`, `problem_solving_score`, `communication_score`) are LLM-generated with no rubric calibration or human-rater agreement; use them for practice reflection, not employment, educational, or other high-stakes decisions.
-- The feedback page and dashboard label `empathy_score` as "COMMUNICATION" and `communication_score` as "ADAPTABILITY".
-- The landing page and sign-in button call the Supabase client on load, and `lib/supabase.ts` throws when the Supabase variables are unset, so the landing page can fail in the browser without them.
-- Lint and type checks are disabled in `next.config.ts`.
+- When the model's JSON fails validation, the user sees the fixed demo report (labeled as demo), not an analysis of their conversation.
+- No automated tests; verification is lint, type check, build, and manual API and browser checks.
 
 ## Documentation
 

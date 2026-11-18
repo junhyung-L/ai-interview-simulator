@@ -1,18 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
+import { SCORE_LABELS, SUB_SCORES, SubScoreKey } from '@/lib/feedback'
 import { 
-  BarChart3, 
   Clock, 
   Target, 
   ChevronRight, 
   ChevronDown,
-  Search, 
-  Filter, 
   ArrowLeft,
-  Zap,
   RefreshCw,
   User,
   Calendar,
@@ -20,7 +17,8 @@ import {
   Trophy,
   Loader2,
   CheckCircle2,
-  TrendingUp
+  TrendingUp,
+  FlaskConical,
 } from 'lucide-react'
 
 interface SessionWithFeedback {
@@ -75,22 +73,20 @@ function ScoreBar({ score, label, color }: { score: number; label: string; color
 
 export default function DashboardPage() {
   const router = useRouter()
+  const supabase = getSupabase()
   const [sessions, setSessions] = useState<SessionWithFeedback[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(supabase !== null)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [expandedSession, setExpandedSession] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadDashboard()
-  }, [])
-
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
+    // Session history needs Supabase; demo mode shows a notice instead.
+    if (!supabase) return
     setRefreshing(true)
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser()
-      
+
       if (!user) {
         router.push('/')
         return
@@ -123,42 +119,49 @@ export default function DashboardPage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [supabase, router])
+
+  useEffect(() => {
+    loadDashboard()
+  }, [loadDashboard])
 
   const completedSessions = sessions.filter((s) => s.feedback)
   const filteredSessions = selectedCategory === 'all'
     ? sessions
     : sessions.filter((s) => s.category === selectedCategory)
 
-  const avgScore = completedSessions.length > 0
-    ? Math.round(completedSessions.reduce((sum, s) => sum + (s.feedback?.total_score || 0), 0) / completedSessions.length)
-    : 0
+  const average = (key: 'total_score' | SubScoreKey) =>
+    completedSessions.length > 0
+      ? Math.round(completedSessions.reduce((sum, s) => sum + (s.feedback?.[key] || 0), 0) / completedSessions.length)
+      : 0
 
-  const avgEmpathy = completedSessions.length > 0
-    ? Math.round(completedSessions.reduce((sum, s) => sum + (s.feedback?.empathy_score || 0), 0) / completedSessions.length)
-    : 0
+  const avgScore = average('total_score')
 
-  const avgProblemSolving = completedSessions.length > 0
-    ? Math.round(completedSessions.reduce((sum, s) => sum + (s.feedback?.problem_solving_score || 0), 0) / completedSessions.length)
-    : 0
-
-  const avgCommunication = completedSessions.length > 0
-    ? Math.round(completedSessions.reduce((sum, s) => sum + (s.feedback?.communication_score || 0), 0) / completedSessions.length)
-    : 0
-
-  const weakestCategory = ['empathy_score', 'problem_solving_score', 'communication_score']
-    .map((key) => {
-      const avg = completedSessions.length > 0
-        ? Math.round(completedSessions.reduce((sum, s) => sum + ((s.feedback as Record<string, number>)?.[key] || 0), 0) / completedSessions.length)
-        : 0
-      return { key, avg }
-    })
+  const weakestCategory = SUB_SCORES
+    .map(({ key }) => ({ key, avg: average(key) }))
     .sort((a, b) => a.avg - b.avg)[0]
 
-  const weakestLabels: Record<string, string> = {
-    empathy_score: '공감 능력',
-    problem_solving_score: '문제 해결',
-    communication_score: '커뮤니케이션',
+  if (!supabase) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--background)] p-6">
+        <div role="status" className="max-w-md w-full bg-white border-2 border-[var(--border)] rounded-3xl p-8 text-center space-y-4">
+          <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto border-2 border-amber-100">
+            <FlaskConical className="w-7 h-7" />
+          </div>
+          <h1 className="text-xl font-black text-[var(--foreground)]">Sign-in unavailable in demo mode</h1>
+          <p className="text-slate-500 font-medium leading-relaxed">
+            세션 기록 대시보드는 Supabase를 설정했을 때만 사용할 수 있습니다.
+            데모 모드에서는 연습과 피드백을 바로 체험할 수 있고, 기록은 저장되지 않습니다.
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="w-full py-3 bg-[var(--primary)] text-white font-black rounded-2xl hover:opacity-90 transition-all"
+          >
+            새 연습 시작하기
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -176,6 +179,7 @@ export default function DashboardPage() {
             <div className="h-6 w-0.5 bg-slate-200" />
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element -- small static logo; next/image adds no benefit here */}
                 <img src="/logo.png" alt="Logo" className="w-full h-full object-contain scale-125" />
               </div>
               <span className="font-bold text-base md:text-lg tracking-tight text-[var(--foreground)] truncate max-w-[100px] sm:max-w-none">마이 대시보드</span>
@@ -208,7 +212,7 @@ export default function DashboardPage() {
                 { label: '평균 점수', value: avgScore, unit: '점', icon: Trophy, bg: 'bg-emerald-50', text: 'text-emerald-600' },
                 {
                   label: '집중 강화',
-                  value: completedSessions.length > 0 ? weakestLabels[weakestCategory?.key || ''] : '-',
+                  value: completedSessions.length > 0 && weakestCategory ? SCORE_LABELS[weakestCategory.key].labelKo : '-',
                   unit: '',
                   icon: Target,
                   bg: 'bg-rose-50',
@@ -237,9 +241,9 @@ export default function DashboardPage() {
                   </div>
                   {completedSessions.length > 0 ? (
                     <div className="space-y-6">
-                      <ScoreBar score={avgEmpathy} label="COMMUNICATION" color="#0EA5E9" />
-                      <ScoreBar score={avgProblemSolving} label="PROBLEM SOLVING" color="#8B5CF6" />
-                      <ScoreBar score={avgCommunication} label="ADAPTABILITY" color="#10B981" />
+                      {SUB_SCORES.map(({ key, color }) => (
+                        <ScoreBar key={key} score={average(key)} label={SCORE_LABELS[key].label} color={color} />
+                      ))}
                     </div>
                   ) : (
                     <div className="py-10 text-center space-y-2">
@@ -352,9 +356,9 @@ export default function DashboardPage() {
                             {session.feedback ? (
                               <>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                    <ScoreBar score={session.feedback.empathy_score} label="COMMUNICATION" color="#0EA5E9" />
-                                    <ScoreBar score={session.feedback.problem_solving_score} label="PROBLEM SOLVING" color="#8B5CF6" />
-                                    <ScoreBar score={session.feedback.communication_score} label="ADAPTABILITY" color="#10B981" />
+                                    {SUB_SCORES.map(({ key, color }) => (
+                                      <ScoreBar key={key} score={session.feedback?.[key] ?? 0} label={SCORE_LABELS[key].label} color={color} />
+                                    ))}
                                 </div>
                                 <div className="pt-2 flex justify-end">
                                   <button
